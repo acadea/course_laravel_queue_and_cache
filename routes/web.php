@@ -18,6 +18,20 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/expensive', function (){
+
+    $result = Cache::lock('luck')->block(10, function (){
+        // expensive operation...
+        return Cache::remember('pasta', 60, function(){
+            sleep(5);
+            return 'I should not eat 5 day old pasta';
+        });
+    });
+    dump($result);
+
+});
+
+
 Route::get('/playground', function(){
 
 //    CRUD
