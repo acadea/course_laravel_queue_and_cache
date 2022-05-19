@@ -87,8 +87,11 @@ class LocationController extends Controller
 
     public function calculateDistance(Request $request, Location $centralLocation)
     {
-        // calculate the distance between central location and each of the location in location_ids
 
+        // clearing the cache items with 'location-distance' tag
+//        Cache::tags(['location-distance'])->clear();
+
+        // calculate the distance between central location and each of the location in location_ids
         // loop thru location_ids
         $distances = collect($request->location_ids)->map(function ($locationId) use($centralLocation){
 
@@ -96,7 +99,7 @@ class LocationController extends Controller
             return Cache::lock("distance:{$centralLocation->id}-{$locationId}")
                 ->block(15, function()use($centralLocation, $locationId){
                     $key = "{$centralLocation->id}-$locationId";
-                    return Cache::rememberForever($key, fn() => $this->distance(
+                    return Cache::tags(['location-distance'])->rememberForever($key, fn() => $this->distance(
                         $centralLocation,
                         Location::query()->findOrFail($locationId))
                     );
