@@ -53,7 +53,18 @@ services:
         expose:
             -   "9000"
 
-
+    laravel-horizon:
+        build:
+            context: "./docker/laravel-horizon"
+        volumes:
+            - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+            - ./docker/laravel-horizon/supervisord.d:/etc/supervisord.d
+        depends_on:
+            - php-fpm
+        extra_hosts:
+            - "dockerhost:${DOCKER_HOST_IP}"
+        networks:
+            - sail
 
     mysql:
         image: 'mysql/mysql-server:8.0'
@@ -99,13 +110,15 @@ services:
 #            test: ["CMD", "wget", "--no-verbose", "--spider",  "http://localhost:7700/health"]
 #            retries: 3
 #            timeout: 5s
-    mailhog:
-        image: 'mailhog/mailhog:latest'
-        ports:
-            - '${FORWARD_MAILHOG_PORT:-1025}:1025'
-            - '${FORWARD_MAILHOG_DASHBOARD_PORT:-8025}:8025'
-        networks:
-            - sail
+
+    # mailhog:
+    #     image: 'mailhog/mailhog:latest'
+    #     ports:
+    #         - '${FORWARD_MAILHOG_PORT:-1025}:1025'
+    #         - '${FORWARD_MAILHOG_DASHBOARD_PORT:-8025}:8025'
+    #     networks:
+    #         - sail
+
 #    selenium:
 #        image: 'selenium/standalone-chrome'
 #        volumes:
