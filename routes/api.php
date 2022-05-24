@@ -20,3 +20,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 
 Route::get('/locations/{centralLocation}/distance', [\App\Http\Controllers\LocationController::class, 'calculateDistance']);
+
+Route::get('/locations', [\App\Http\Controllers\LocationController::class, 'index']);
+
+Route::post('/locations/upload', [\App\Http\Controllers\LocationController::class, 'upload']);

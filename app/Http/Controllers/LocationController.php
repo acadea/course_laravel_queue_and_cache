@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\LocationResource;
+use App\Jobs\ProcessLocationCsv;
 use App\Models\Location;
+use App\Services\CsvReader\LocationUploader;
 use App\Services\Geolocation\LocationDistance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,11 +16,13 @@ class LocationController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index()
     {
-        //
+        $locations = Location::query()->get();
+
+        return LocationResource::collection($locations)->response();
     }
 
     /**
@@ -111,6 +116,24 @@ class LocationController extends Controller
         return new JsonResponse([
             'data' => $distances
         ]);
+
+
+    }
+
+
+    public function upload(Request $request)
+    {
+//        get the file from request
+        $file = $request->file('csv');
+
+        $encoded = base64_encode($file->getContent());
+
+        ProcessLocationCsv::dispatch($encoded);
+
+        return new JsonResponse([
+            'data' => 'ok'
+        ]);
+
 
 
     }
