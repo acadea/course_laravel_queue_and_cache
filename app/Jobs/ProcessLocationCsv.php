@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Middleware\SetEnvironment;
 use App\Services\CsvReader\LocationUploader;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -9,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\RateLimitedWithRedis;
 use Illuminate\Queue\SerializesModels;
 
 class ProcessLocationCsv implements ShouldQueue
@@ -25,6 +27,14 @@ class ProcessLocationCsv implements ShouldQueue
         //
     }
 
+    public function middleware()
+    {
+        return [
+            new SetEnvironment('testing'),
+            new RateLimitedWithRedis('upload-csv')
+        ];
+    }
+
     /**
      * Execute the job.
      *
@@ -32,6 +42,8 @@ class ProcessLocationCsv implements ShouldQueue
      */
     public function handle()
     {
+
+
         $csvContent = base64_decode($this->csvBase64);
 
         $path = sys_get_temp_dir() . '/php' . substr(sha1(rand()), 0, 6);
