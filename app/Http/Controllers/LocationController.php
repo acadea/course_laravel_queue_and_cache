@@ -3,12 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\LocationResource;
+use App\Jobs\CacheLocationDistances;
 use App\Jobs\ProcessLocationCsv;
 use App\Models\Location;
+use App\Services\Cache\LocationDistanceCacher;
 use App\Services\CsvReader\LocationUploader;
 use App\Services\Geolocation\LocationDistance;
+use Illuminate\Bus\Batch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 
 class LocationController extends Controller
@@ -70,25 +74,7 @@ class LocationController extends Controller
         //
     }
 
-    public function distance(Location $locationA, Location $locationB)
-    {
-        return [
-            'from_location' => $locationA->toArray(),
-            'to_location' => $locationB->toArray(),
-            'absolute_distance' => LocationDistance::absoluteDistance(
-                originLon: $locationA->longitude,
-                originLat: $locationA->latitude,
-                destLon: $locationB->longitude,
-                destLat: $locationB->latitude
-            ),
-            'travel_distance' => LocationDistance::travelDistance(
-                originLon: $locationA->longitude,
-                originLat: $locationA->latitude,
-                destLon: $locationB->longitude,
-                destLat: $locationB->latitude
-            ),
-        ];
-    }
+
 
     public function calculateDistance(Request $request, Location $centralLocation)
     {
@@ -98,20 +84,7 @@ class LocationController extends Controller
 
         // calculate the distance between central location and each of the location in location_ids
         // loop thru location_ids
-        $distances = collect($request->location_ids)->map(function ($locationId) use($centralLocation){
-
-            // for each location calculate the distance from central location
-            return Cache::lock("distance:{$centralLocation->id}-{$locationId}")
-                ->block(15, function()use($centralLocation, $locationId){
-                    $key = "{$centralLocation->id}-$locationId";
-                    return Cache::tags(['location-distance'])->rememberForever($key, fn() => $this->distance(
-                        $centralLocation,
-                        Location::query()->findOrFail($locationId))
-                    );
-                });
-
-
-        });
+        $distances = LocationDistanceCacher::calculateDistances($centralLocation, $request->location_ids);
 
         return new JsonResponse([
             'data' => $distances
@@ -129,6 +102,37 @@ class LocationController extends Controller
         $encoded = base64_encode($file->getContent());
 
         ProcessLocationCsv::dispatch($encoded);
+
+        Bus::chain([
+            new ProcessLocationCsv($encoded),
+
+            function(){
+                // one off operation
+                // divide cache location job into batches of 2
+                $totalLocations = Location::query()->count();
+
+                $chunkSize = 2;
+                $chunks = $totalLocations / $chunkSize;
+
+                $batches = collect(range(0, $chunks))
+                    ->map(fn ($index) => new CacheLocationDistances($index * $chunkSize, $index * $chunkSize + $chunkSize))
+                    ->toArray();
+
+                Bus::batch($batches)
+//                    ->then(function(){
+//
+//                    })
+//                    ->catch(function(){
+//
+//                    })
+                    ->name('cache location distance')
+//                    ->onConnection()
+//                    ->onQueue()
+                    ->dispatch();
+
+
+            }
+        ])->dispatch();
 
         return new JsonResponse([
             'data' => 'ok'

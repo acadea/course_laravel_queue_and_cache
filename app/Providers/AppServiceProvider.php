@@ -27,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
     {
         //
         RateLimiter::for('upload-csv', function($job){
-            return Limit::perMinute(1);
+            return Limit::perMinute(5);
         });
     }
 }
