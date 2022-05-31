@@ -101,7 +101,7 @@ class LocationController extends Controller
 
         $encoded = base64_encode($file->getContent());
 
-        ProcessLocationCsv::dispatch($encoded);
+//        ProcessLocationCsv::dispatch($encoded);
 
         Bus::chain([
             new ProcessLocationCsv($encoded),
